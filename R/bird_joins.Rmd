@@ -6,24 +6,75 @@ date: '2022-08-16'
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lubridate)
+
 ```
 
-## R Markdown
+```{r}
+bird_observations <- read_csv(here::here("data", "52_pp52_birds_1.csv"))
+sites <- read_csv(here::here("data", "52_pp52_sites_1.csv"))
+surveys <- read_csv(here::here("data", "52_pp52_surveys_1.csv"))
+taxalist <- read_csv(here::here("data", "52_pp52_taxalist_1.csv"))
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+birds_subset <- bird_observations %>% 
+  filter(species_id == c("BHCO", "RWBL")) %>% 
+  filter(site_id == c("LI-W", "NU-C"))
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+birds_left <- birds_subset %>% 
+  left_join(sites, by = "site_id") %>% 
+  left_join(taxalist, by = "species_id")
 
-```{r cars}
-summary(cars)
+birds_left <- left_join(birds_left, taxalist, by = "species_id")
+ 
 ```
 
-## Including Plots
+## Full Join
 
-You can also embed plots, for example:
+```{r}
+# I'd expect all rows and columns to be included
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+birds_full <- birds_subset %>% 
+  full_join(birds_subset, sites, by = "site_id")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Inner Join
+
+```{r}
+# I'd expect to see the 2 species and the 2 sites joined with the taxa info
+
+birds_inner <- inner_join(birds_subset, taxalist, by = "species_id")
+birds_left_ex <- left_join(birds_subset, taxalist, by = "species_id")
+
+# They're the same because the taxalist dF species_id has all the same values as birds_subset
+```
+
+
+# Task 2
+
+```{r}
+
+bird_observations %>% 
+  rename(bird_obs_notes = notes)
+
+birds <- bird_observations %>%
+  left_join(surveys, by = c("site_id", "survey_id")) %>% 
+  left_join(taxalist, by = "species_id") %>% 
+  left_join(sites, by = "site_id") %>% 
+  select(survey_date, common_name, park_name, bird_count)
+
+birds <- birds %>% 
+  mutate(survey_month = lubridate::month(birds$survey_date)) %>% 
+  mutate(survey_month = as.numeric(survey_month)) %>% 
+  relocate(survey_month, .after = survey_date)
+
+birds_count <- birds %>% 
+  group_by(survey_month, park_name) %>% 
+  summarise(count = n()) %>% 
+  filter(park_name %in% c("Lindo", "Orme", "Palomino", "Sonrisa"))
+
+
+
+```
+
